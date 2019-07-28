@@ -14,9 +14,11 @@ from rl_common import ReplayMemory, update_state, learn
 from dqn_model import DQN
 import cv2
 import tensorflow as tf
+from datetime import datetime
+import sys
 
 MAX_EXPERIENCE = 50000
-MIN_EXPERIENCE = 5000
+MIN_EXPERIENCE = 100
 TARGET_UPDATE_PERIOD = 10000
 IM_SIZE = 84
 K = 3
@@ -48,10 +50,12 @@ def play_ones(env,
     total_time_training = 0
     num_steps_in_episode = 0
     episode_reward = 0
-    
+    record = True
     done = False
     if record == True:
-        out = cv2.VideoWriter(pathOut,cv2.VideoWriter_fourcc(*'DIVX'), 10.0, (480,640))
+        #out = cv2.VideoWriter(pathOut,cv2.VideoWriter_fourcc(*'XVID'), 20.0, (480,640))
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter('output.avi',fourcc, 20.0, (640,480))
     while not done:
         
         if total_t % TARGET_UPDATE_PERIOD == 0:
@@ -77,8 +81,7 @@ def play_ones(env,
         total_t += 1
         epsilon = max(epsilon - epsilon_change, epsilon_min)
         if record == True:
-            frame = cv2.cvtColor(obs, cv2.COLOR_GRAY2BGR)
-            frame = cv2.resize(frame,(480,640))
+            frame = cv2.resize(obs,(640,480))
             out.write(frame)
             #cv2.imshow("frame", frame)
     if record == True:
@@ -88,7 +91,6 @@ def play_ones(env,
 
 if __name__ == '__main__':
     print "Starting training!!!"
-    
     conv_layer_sizes = [(32,8,4), (64,4,2), (64,3,1)]
     hidden_layer_sizes = [512]
     gamma = 0.99
@@ -183,18 +185,15 @@ if __name__ == '__main__':
             obs, reward, done, _ = env.step(action)
             obs_small = image_transformer.transform(obs, sess)
             experience_replay_buffer.add_experience(action, obs_small, reward, done)
-            print i
             if done:
                 obs = env.reset()
-                
+
+        
+        print("Done! Starts Training!!")     
         t0 = datetime.now()
         record = True
         for i in range(num_episodes):
-            video_path = 'video/video'+str(i)+'.avi'
-            if i%100 == 0:
-                record = True
-            else:
-                record = False
+            
             total_t, episode_reward, duration, num_steps_in_episode, time_per_step, epsilon = play_ones(
                     env,
                     sess,
@@ -208,8 +207,8 @@ if __name__ == '__main__':
                     epsilon,
                     epsilon_change,
                     epsilon_min,
-                    video_path,
-                    record)
+                    None,
+                    False)
             episode_rewards[i] = episode_reward
             episode_lens[i] = num_steps_in_episode
             last_100_avg = episode_rewards[max(0,i-100):i+1].mean()
