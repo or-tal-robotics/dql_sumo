@@ -4,4 +4,5 @@
     <rosparam command="load" file="$(find gazebo_sumo)/config/sumo_params.yaml" />
     <!-- Launch the training system -->
     <node pkg="gazebo_sumo" name="turtlebot2_sumo" type="start_training.py" output="screen"/>
+    <node pkg="gazebo_sumo" name="recorder_node" type="learning_recorder_node.py" output="screen"/>
 </launch>

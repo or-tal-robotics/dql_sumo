@@ -16,6 +16,7 @@ import cv2
 import tensorflow as tf
 from datetime import datetime
 import sys
+from std_msgs.msg import Int16
 
 MAX_EXPERIENCE = 50000
 MIN_EXPERIENCE = 100
@@ -36,9 +37,7 @@ def play_ones(env,
               batch_size,
               epsilon,
               epsilon_change,
-              epsilon_min,
-              pathOut,
-              record):
+              epsilon_min):
     
     t0 = datetime.now()
     obs = env.reset()
@@ -52,10 +51,7 @@ def play_ones(env,
     episode_reward = 0
     record = True
     done = False
-    if record == True:
-        #out = cv2.VideoWriter(pathOut,cv2.VideoWriter_fourcc(*'XVID'), 20.0, (480,640))
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter('output.avi',fourcc, 20.0, (640,480))
+    
     while not done:
         
         if total_t % TARGET_UPDATE_PERIOD == 0:
@@ -80,12 +76,7 @@ def play_ones(env,
         state = next_state
         total_t += 1
         epsilon = max(epsilon - epsilon_change, epsilon_min)
-        if record == True:
-            frame = cv2.resize(obs,(640,480))
-            out.write(frame)
-            #cv2.imshow("frame", frame)
-    if record == True:
-        out.release()
+        
     return total_t, episode_reward, (datetime.now()-t0), num_steps_in_episode, total_time_training/num_steps_in_episode, loss
 
 
@@ -107,6 +98,8 @@ if __name__ == '__main__':
 
     rospy.init_node('sumo_dqlearn',
                     anonymous=True, log_level=rospy.WARN)
+
+    episode_counter_pub = rospy.Publisher('/episode_counter', Int16)
 
     # Init OpenAI_ROS ENV
     task_and_robot_environment_name = rospy.get_param(
@@ -191,9 +184,10 @@ if __name__ == '__main__':
         
         print("Done! Starts Training!!")     
         t0 = datetime.now()
-        record = True
         for i in range(num_episodes):
-            
+            msg_data = Int16()
+            msg_data.data = i
+            episode_counter_pub.publish(msg_data)
             total_t, episode_reward, duration, num_steps_in_episode, time_per_step, epsilon = play_ones(
                     env,
                     sess,
@@ -206,9 +200,7 @@ if __name__ == '__main__':
                     batch_sz,
                     epsilon,
                     epsilon_change,
-                    epsilon_min,
-                    None,
-                    False)
+                    epsilon_min)
             episode_rewards[i] = episode_reward
             episode_lens[i] = num_steps_in_episode
             last_100_avg = episode_rewards[max(0,i-100):i+1].mean()
